@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
+from datetime import datetime
 
 # URL of the Berkshire Hathaway 13F filings page
 url = "https://13f.info/manager/0001067983-berkshire-hathaway-inc"
@@ -15,6 +16,7 @@ soup = BeautifulSoup(response.text, 'html.parser')
 # Find all the links in the table and filter out unwanted ones
 quarter_links = []
 quarter_names = []  # To store quarter names
+filing_dates = [] # To store filing dates
 table = soup.find('table')
 if table:
     rows = table.find_all('tr')[1:]  # Skip header row
@@ -29,7 +31,19 @@ if table:
                 if "new-holdings" not in href.lower() and "restatement" not in href.lower():
                     quarter_links.append(href)
                     quarter_names.append(quarter_name)
-
+                    # Extract filing date.  Assumes it's in the next 'td'
+                    date_cell = row.find_all('td')[5]
+                    if date_cell:
+                        filing_date_str = date_cell.get_text(strip=True)
+                        try:
+                            filing_date = datetime.strptime(filing_date_str, '%m/%d/%Y').date()  # Convert to date
+                            filing_dates.append(filing_date)
+                        except ValueError:
+                            print(f"Error: Could not parse date string '{filing_date_str}'.  Setting to None.")
+                            filing_dates.append(None)  # Set to None if parsing fails
+                    else:
+                        filing_dates.append(None)  # Add None if no date found
+                
 def get_apple_percentage(quarter_string):
     base_url = "https://13f.info"
     page_url = f"{base_url}{quarter_string}"
@@ -85,10 +99,10 @@ def get_apple_percentage(quarter_string):
 results = []
 
 # Process each quarter
-for q, name in zip(quarter_links, quarter_names):
+for q, name, date in zip(quarter_links, quarter_names, filing_dates): # Added filing_dates
     percentage = get_apple_percentage(q)
     if percentage:
-        results.append({'Quarter': name, 'Apple Percentage': percentage})
+        results.append({'Quarter': name, 'Apple Percentage': percentage, 'Date Filed': date}) # Added 'Date Filed'
 
 # Create DataFrame from results
 apple_percentages_df = pd.DataFrame(results)
@@ -98,4 +112,4 @@ print(apple_percentages_df)
 
 # Optional: Save to CSV
 apple_percentages_df.to_csv('berkshire_apple_percentages.csv', index=False)
-#this may not save to the correct directory, just search for the file on your PC and move to the correct location in this case
+# this may not save to the correct directory, just search for the file on your PC and move to the correct location in this case
