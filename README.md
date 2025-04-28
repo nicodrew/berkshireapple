@@ -1,0 +1,1 @@
+The python file will generate the csv file, no need to run it again unless there is a new quarterly statement. to be implemented is the release date of each 13f statement so that we can compare this with AAPL and BRK stock performance
