@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 from datetime import datetime
+import os
 
 # URL of the Berkshire Hathaway 13F filings page
 url = "https://13f.info/manager/0001067983-berkshire-hathaway-inc"
@@ -28,7 +29,7 @@ if table:
             link = quarter_cell.find('a')
             if link and 'href' in link.attrs:
                 href = link['href']
-                if "new-holdings" not in href.lower() and "restatement" not in href.lower():
+                if "new-holdings" not in href.lower():
                     quarter_links.append(href)
                     quarter_names.append(quarter_name)
                     # Extract filing date.  Assumes it's in the next 'td'
@@ -111,5 +112,7 @@ apple_percentages_df = pd.DataFrame(results)
 print(apple_percentages_df)
 
 # Optional: Save to CSV
-apple_percentages_df.to_csv('berkshire_apple_percentages.csv', index=False)
+script_dir = os.path.dirname(os.path.abspath(__file__))  # Get script's directory
+csv_path = os.path.join(script_dir, 'berkshire_apple_percentages.csv')
+apple_percentages_df.to_csv(csv_path, index=False)
 # this may not save to the correct directory, just search for the file on your PC and move to the correct location in this case
