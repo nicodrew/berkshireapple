@@ -1,6 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
-import pandas as pd
+import pandas as pd 
 from datetime import datetime
 import os
 
@@ -16,8 +16,8 @@ soup = BeautifulSoup(response.text, 'html.parser')
 
 # Find all the links in the table and filter out unwanted ones
 quarter_links = []
-quarter_names = []  # To store quarter names
-filing_dates = [] # To store filing dates
+quarter_names = []  
+filing_dates = [] 
 table = soup.find('table')
 if table:
     rows = table.find_all('tr')[1:]  # Skip header row
@@ -45,7 +45,7 @@ if table:
                     else:
                         filing_dates.append(None)  # Add None if no date found
                 
-def get_apple_percentage(quarter_string):
+def get_top10_percentages(quarter_string):
     base_url = "https://13f.info"
     page_url = f"{base_url}{quarter_string}"
 
@@ -84,35 +84,42 @@ def get_apple_percentage(quarter_string):
 
     df['symbol'] = df['symbol'].str.strip()
 
-    # Filter for Apple (AAPL)
-    apple_row = df[df['symbol'] == 'AAPL']
+    symbols = ['AAPL', 'AXP', 'BAC', 'KO', 'CVX', 'OXY', 'MCO', 'KHC', 'CB', 'DVA']
 
-    if apple_row.empty:
-        print(f"Apple (AAPL) not found in {quarter_string}")
+    # Filter the DataFrame for these symbols
+    filtered_df = df[df['symbol'].isin(symbols)][['symbol', 'percentage']]
+
+    if filtered_df.empty:
+        print(f"None of the target symbols found in {quarter_string}")
         return None
 
-    # Get the 'percentage' field
-    apple_percentage = apple_row.iloc[0]['percentage']
+    # Pivot to get symbols as columns, one row of percentages
+    percentage_row = filtered_df.set_index('symbol').T
+    percentage_row = percentage_row.reindex(columns=sorted(symbols))  # ensure consistent column order
 
-    return apple_percentage
+    return percentage_row.reset_index(drop=True)
 
-# Create a list to store results
+
+
 results = []
 
 # Process each quarter
-for q, name, date in zip(quarter_links, quarter_names, filing_dates): # Added filing_dates
-    percentage = get_apple_percentage(q)
-    if percentage:
-        results.append({'Quarter': name, 'Apple Percentage': percentage, 'Date Filed': date}) # Added 'Date Filed'
+for q, name, date in zip(quarter_links, quarter_names, filing_dates):
+    percentage_df = get_top10_percentages(q)
+    if percentage_df is not None:
+        row = percentage_df.iloc[0].to_dict()
+        row['filing_date'] = date
+        row['quarter'] = name
+        results.append(row)
 
-# Create DataFrame from results
-apple_percentages_df = pd.DataFrame(results)
+# Create a DataFrame from the list of row dictionaries
+holdings_df = pd.DataFrame(results)
+holdings_df = holdings_df.sort_values(by='filing_date').reset_index(drop=True)
 
-# Display the DataFrame
-print(apple_percentages_df)
+# Optional: move the metadata columns to the front
+cols = ['filing_date', 'quarter'] + [col for col in holdings_df.columns if col not in ['filing_date', 'quarter']]
+holdings_df = holdings_df[cols]
 
-# Optional: Save to CSV
-script_dir = os.path.dirname(os.path.abspath(__file__))  # Get script's directory
-csv_path = os.path.join(script_dir, 'berkshire_apple_percentages.csv')
-apple_percentages_df.to_csv(csv_path, index=False)
-# this may not save to the correct directory, just search for the file on your PC and move to the correct location in this case
+script_dir = os.path.dirname(os.path.abspath(__file__))
+csv_path = os.path.join(script_dir, 'berkshire_top10_percentages.csv')
+holdings_df.to_csv(csv_path, index=False)
