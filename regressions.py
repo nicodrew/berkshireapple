@@ -5,15 +5,15 @@ import numpy as np
 import statsmodels.api as sm
 
 
-df = pd.read_csv(r'C:\\Users\\Nicolas\\OneDrive\\GitHub\\berkshireapple\\berkshire_top10_percentages.csv')
+df = pd.read_csv(r'C:\Users\nicol\OneDrive\GitHub\berkshireapple\berkshire_top10_percentages.csv')
 df["filing_date"] = pd.to_datetime(df["filing_date"], format="%m/%d/%Y")
 priceDelta = df
 
 # Format Holdings changes as log percentages
 df_pct = df.copy()
 df_pct.iloc[:, 2:] = df.iloc[:, 2:].pct_change(fill_method=None) * 100
-df_log = df_pct.copy()
-df_pct.iloc[:, 2:] = np.log10(1 + df_pct.iloc[:, 2:] / 100)
+#df_log = df_pct.copy()
+#df_pct.iloc[:, 2:] = np.log10(1 + df_pct.iloc[:, 2:] / 100)
 df_pct = df_pct.round(2)
 
 # Find stock price deltas
@@ -40,7 +40,7 @@ for ticker in tickers:
     for date in df['filing_date']:
         try:
             date_next_day = pd.to_datetime(date) + pd.Timedelta(days=1)
-            date_prev_day = pd.to_datetime(date) - pd.Timedelta(days=1)
+            date_prev_day = pd.to_datetime(date) - pd.Timedelta(days=0)
             open_price = open_prices.at[date_prev_day, ticker]
             close_price = close_prices.at[date_next_day, ticker]
             pct_change = ((close_price - open_price) / open_price) * 100
@@ -49,7 +49,9 @@ for ticker in tickers:
         changes.append(pct_change)
     price_change_df[ticker] = changes
 
+
 print(price_change_df.head())
+
 
 
 # Regressions
@@ -58,19 +60,25 @@ numeric_cols = merged_df.select_dtypes(include=['float64', 'int64']).columns
 
 # Replace NaN values in numeric columns with the mean of each column
 merged_df[numeric_cols] = merged_df[numeric_cols].fillna(merged_df[numeric_cols].mean())
-# Perform regression for each stock ticker
-results = {}
 
 for ticker in price_change_df.columns[2:]:  # Starting from the 3rd column to skip 'filing_date' and 'quarter'
-    X = merged_df[[f'{ticker}_holding']]  # Independent variable (holdings)
-    y = merged_df[f'{ticker}_price']  # Dependent variable (stock prices)
+    merged_df[f'{ticker}_price_increase'] = (merged_df[f'{ticker}_price'].diff() > 0).astype(int)
+
+results = {}
+
+# Perform regression for each stock ticker
+for ticker in price_change_df.columns[2:]:
+    # Independent variable: percentage change in holdings
+    X = merged_df[[f'{ticker}_holding']]
+    # Dependent variable: binary outcome (increase in stock price)
+    y = merged_df[f'{ticker}_price_increase']
     
     # Add constant to the independent variable (for intercept)
     X = sm.add_constant(X)
     
-    # Run OLS regression
-    model = sm.OLS(y, X).fit()
-    
+    # Run logistic regression (Logit)
+    model = sm.Logit(y, X).fit(cov_type='HC3')
+
     # Store the results
     results[ticker] = model.summary()
 
