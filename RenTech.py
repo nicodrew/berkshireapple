@@ -3,9 +3,11 @@ from bs4 import BeautifulSoup
 import pandas as pd 
 from datetime import datetime
 import os
+import time
 
-# URL of the Berkshire Hathaway 13F filings page
 url = "https://13f.info/manager/0001037389-renaissance-technologies-llc"
+
+start_time = time.time()
 
 # Send a GET request to the page
 response = requests.get(url)
@@ -83,8 +85,8 @@ def get_top10_percentages(quarter_string):
     df = pd.DataFrame(data_json['data'], columns=columns)
 
     df['symbol'] = df['symbol'].str.strip()
-# placeholder for the top holdings, top 30 from the current quarter
-    symbols = ['PLTR', 'VRSN', 'CORT', 'HOOD', 'SFM', 'UTHR', 'GILD', 'VRTX', 'EXEL', 'NVO', 'FNV.TO','ABNB', 'SPOT', 'K.TO', 'AVGO', 'CBOE', 'DASH', 'RBLX', 'GOOGL', 'META', 'FTNT', 'AMD', 'NTNX', 'TEAM', 'DOCU', 'ALSN', 'MNDY', 'DBX', 'NBIX', 'CL', 'TW']
+# placeholder for the top holdings, top 50 from the current quarter (1/25)
+    symbols = ['PLTR', 'VRSN', 'CORT', 'HOOD', 'SFM', 'UTHR', 'GILD', 'VRTX', 'EXEL', 'NVO', 'FNV.TO','ABNB', 'SPOT', 'K.TO', 'AVGO', 'CBOE', 'DASH', 'RBLX', 'GOOGL', 'META', 'FTNT', 'AMD', 'NTNX', 'TEAM', 'DOCU', 'ALSN', 'MNDY', 'DBX', 'NBIX', 'CL', 'TW', 'ZM', 'CVLT', 'WMT', 'ABBV', 'NVS', 'CCL', 'ETSY', 'APP', 'INCY', 'NOW', 'CME', 'ECL', 'HIMS', 'CRVL', 'RDDT', 'LI', 'NGG', 'WSM', 'CVX']
 
     # Filter the DataFrame for these symbols
     filtered_df = df[df['symbol'].isin(symbols)][['symbol', 'percentage']]
@@ -98,6 +100,10 @@ def get_top10_percentages(quarter_string):
     percentage_row = percentage_row.reindex(columns=sorted(symbols))  # ensure consistent column order
 
     return percentage_row.reset_index(drop=True)
+
+# calculate time taken to pull data
+end_time = time.time()
+elapsed_time = end_time - start_time
 
 
 
@@ -121,5 +127,9 @@ cols = ['filing_date', 'quarter'] + [col for col in holdings_df.columns if col n
 holdings_df = holdings_df[cols]
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-csv_path = os.path.join(script_dir, 'RenTech_top10_percentages.csv')
+csv_path = os.path.join(script_dir, 'RenTech_top50_percentages.csv')
 holdings_df.to_csv(csv_path, index=False)
+
+
+print(f"Data pull completed in {elapsed_time:.2f} seconds.")
+print(f"Data saved to {csv_path}")
